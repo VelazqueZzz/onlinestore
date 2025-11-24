@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Добавить товар</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container">
+        <a class="navbar-brand" th:href="@{/}">Магазин</a>
+        <div class="navbar-nav ms-auto">
+            <a class="nav-link" th:href="@{/admin/products}">Назад к списку</a>
+            <a class="nav-link" th:href="@{/}">Вернуться в магазин</a>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Добавить новый товар</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Сообщения об ошибке -->
+                    <div th:if="${errorMessage}" class="alert alert-danger">
+                        <span th:text="${errorMessage}"></span>
+                    </div>
+
+                    <form th:action="@{/admin/products/new}" th:object="${product}" method="post">
+                        <!-- Название товара -->
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Название товара *</label>
+                            <input type="text" class="form-control" id="name" th:field="*{name}"
+                                   required minlength="2" maxlength="255">
+                            <div th:if="${#fields.hasErrors('name')}" class="text-danger">
+                                <span th:errors="*{name}"></span>
+                            </div>
+                        </div>
+
+                        <!-- Описание -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Описание *</label>
+                            <textarea class="form-control" id="description" th:field="*{description}"
+                                      rows="4" required minlength="10" maxlength="1000"></textarea>
+                            <div th:if="${#fields.hasErrors('description')}" class="text-danger">
+                                <span th:errors="*{description}"></span>
+                            </div>
+                        </div>
+
+                        <!-- Цена -->
+                        <div class="mb-3">
+                            <label for="price" class="form-label">Цена (₽) *</label>
+                            <input type="number" class="form-control" id="price" th:field="*{price}"
+                                   step="0.01" min="0" required>
+                            <div th:if="${#fields.hasErrors('price')}" class="text-danger">
+                                <span th:errors="*{price}"></span>
+                            </div>
+                        </div>
+
+                        <!-- URL изображения -->
+                        <div class="mb-3">
+                            <label for="imageUrl" class="form-label">URL изображения</label>
+                            <input type="url" class="form-control" id="imageUrl" th:field="*{imageUrl}"
+                                   placeholder="https://example.com/image.jpg">
+                            <div class="form-text">
+                                Оставьте пустым для использования изображения по умолчанию
+                            </div>
+                        </div>
+
+                        <!-- Количество на складе -->
+                        <div class="mb-3">
+                            <label for="stockQuantity" class="form-label">Количество на складе *</label>
+                            <input type="number" class="form-control" id="stockQuantity" th:field="*{stockQuantity}"
+                                   min="0" value="0" required>
+                            <div th:if="${#fields.hasErrors('stockQuantity')}" class="text-danger">
+                                <span th:errors="*{stockQuantity}"></span>
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a th:href="@{/admin/products}" class="btn btn-secondary me-md-2">Отмена</a>
+                            <button type="submit" class="btn btn-primary">Добавить товар</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
