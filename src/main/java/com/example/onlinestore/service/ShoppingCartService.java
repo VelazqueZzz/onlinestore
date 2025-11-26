@@ -4,6 +4,7 @@ import com.example.onlinestore.model.CartItem;
 import com.example.onlinestore.model.Product;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.annotation.SessionScope;
+
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,5 +56,9 @@ public class ShoppingCartService {
         return cartItems.stream()
                 .mapToInt(CartItem::getQuantity)
                 .sum();
+    }
+
+    public boolean isEmpty() {
+        return cartItems.isEmpty();
     }
 }
