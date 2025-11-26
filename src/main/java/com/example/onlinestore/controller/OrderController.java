@@ -129,10 +129,15 @@ public class OrderController {
     // Список всех заказов (для админки)
     @GetMapping("/admin")
     public String orderList(Model model) {
-        List<Order> orders = orderService.getAllOrders();
-        model.addAttribute("orders", orders);
-        model.addAttribute("cartItemsCount", cartService.getTotalItems());
-        return "admin/orders";
+        try {
+            List<Order> orders = orderService.getAllOrders();
+            model.addAttribute("orders", orders);
+            model.addAttribute("cartItemsCount", cartService.getTotalItems());
+            return "admin/orders";
+        } catch (Exception e) {
+            model.addAttribute("errorMessage", "Ошибка при загрузке заказов: " + e.getMessage());
+            return "admin/orders";
+        }
     }
 
     // Детали конкретного заказа (для админки)
@@ -142,7 +147,7 @@ public class OrderController {
             Order order = orderService.getOrderById(id);
             model.addAttribute("order", order);
             model.addAttribute("cartItemsCount", cartService.getTotalItems());
-            model.addAttribute("orderStatuses", OrderStatus.values()); // Используем OrderStatus
+            model.addAttribute("orderStatuses", OrderStatus.values());
             return "admin/order-details";
         } catch (Exception e) {
             model.addAttribute("errorMessage", "Заказ не найден: " + e.getMessage());
@@ -153,7 +158,7 @@ public class OrderController {
     // Изменение статуса заказа (для админки)
     @PostMapping("/admin/{id}/status")
     public String updateOrderStatus(@PathVariable Long id,
-                                    @RequestParam OrderStatus status, // Используем OrderStatus
+                                    @RequestParam OrderStatus status,
                                     RedirectAttributes redirectAttributes) {
         try {
             orderService.updateOrderStatus(id, status);

@@ -8,7 +8,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -79,7 +82,12 @@ public class OrderService {
     }
 
     public List<Order> getAllOrders() {
-        return orderRepository.findAllByOrderByOrderDateDesc();
+        try {
+            return orderRepository.findAllByOrderByOrderDateDesc();
+        } catch (Exception e) {
+            System.err.println("Error getting all orders: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     public Order getOrderById(Long id) {
@@ -88,46 +96,222 @@ public class OrderService {
     }
 
     public void updateOrderStatus(Long id, OrderStatus status) {
-        Order order = getOrderById(id);
-        order.setStatus(status);
-        orderRepository.save(order);
+        try {
+            Order order = getOrderById(id);
+            order.setStatus(status);
+            orderRepository.save(order);
+            System.out.println("Order " + id + " status updated to: " + status);
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при обновлении статуса заказа: " + e.getMessage(), e);
+        }
     }
 
     public List<Order> getOrdersByEmail(String email) {
-        return orderRepository.findByCustomerEmailOrderByOrderDateDesc(email);
+        try {
+            return orderRepository.findByCustomerEmailOrderByOrderDateDesc(email);
+        } catch (Exception e) {
+            System.err.println("Error getting orders by email: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     public List<Order> getOrdersByStatus(OrderStatus status) {
-        return orderRepository.findByStatusOrderByOrderDateDesc(status);
+        try {
+            return orderRepository.findByStatusOrderByOrderDateDesc(status);
+        } catch (Exception e) {
+            System.err.println("Error getting orders by status: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 
     public void cancelOrder(Long id) {
-        Order order = getOrderById(id);
+        try {
+            Order order = getOrderById(id);
 
-        // Возвращаем товары на склад
-        for (OrderItem item : order.getItems()) {
-            Product product = item.getProduct();
-            product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-            productService.saveProduct(product);
+            // Возвращаем товары на склад
+            for (OrderItem item : order.getItems()) {
+                Product product = item.getProduct();
+                product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+                productService.saveProduct(product);
+            }
+
+            order.setStatus(OrderStatus.CANCELLED);
+            orderRepository.save(order);
+            System.out.println("Order " + id + " cancelled successfully");
+
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при отмене заказа: " + e.getMessage(), e);
         }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        orderRepository.save(order);
     }
 
     public Long getTotalOrdersCount() {
-        return orderRepository.count();
+        try {
+            return orderRepository.count();
+        } catch (Exception e) {
+            System.err.println("Error getting total orders count: " + e.getMessage());
+            return 0L;
+        }
     }
 
     public BigDecimal getTotalRevenue() {
-        return orderRepository.findAll().stream()
-                .filter(order -> order.getStatus() == OrderStatus.COMPLETED ||
-                        order.getStatus() == OrderStatus.DELIVERED)
-                .map(Order::getTotalAmount)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        try {
+            List<Order> allOrders = orderRepository.findAll();
+            BigDecimal revenue = BigDecimal.ZERO;
+
+            for (Order order : allOrders) {
+                if (order.getStatus() == OrderStatus.COMPLETED ||
+                        order.getStatus() == OrderStatus.DELIVERED ||
+                        order.getStatus() == OrderStatus.PROCESSING) {
+                    revenue = revenue.add(order.getTotalAmount());
+                }
+            }
+
+            return revenue;
+        } catch (Exception e) {
+            System.err.println("Error calculating total revenue: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
     }
 
     public List<Order> getRecentOrders(int count) {
-        return orderRepository.findTop5ByOrderByOrderDateDesc();
+        try {
+            List<Order> allOrders = orderRepository.findAllByOrderByOrderDateDesc();
+            return allOrders.stream()
+                    .limit(count)
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error getting recent orders: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public Long getPendingOrdersCount() {
+        try {
+            List<Order> pendingOrders = orderRepository.findByStatusOrderByOrderDateDesc(OrderStatus.PENDING);
+            return (long) pendingOrders.size();
+        } catch (Exception e) {
+            System.err.println("Error getting pending orders count: " + e.getMessage());
+            return 0L;
+        }
+    }
+
+    public BigDecimal getMonthlyRevenue() {
+        try {
+            LocalDateTime startOfMonth = LocalDateTime.now().withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0);
+            List<Order> allOrders = orderRepository.findAll();
+
+            BigDecimal monthlyRevenue = BigDecimal.ZERO;
+            for (Order order : allOrders) {
+                if (order.getOrderDate().isAfter(startOfMonth) &&
+                        (order.getStatus() == OrderStatus.COMPLETED ||
+                                order.getStatus() == OrderStatus.DELIVERED ||
+                                order.getStatus() == OrderStatus.PROCESSING)) {
+                    monthlyRevenue = monthlyRevenue.add(order.getTotalAmount());
+                }
+            }
+
+            return monthlyRevenue;
+        } catch (Exception e) {
+            System.err.println("Error calculating monthly revenue: " + e.getMessage());
+            return BigDecimal.ZERO;
+        }
+    }
+
+    public List<Order> getOrdersByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
+        try {
+            List<Order> allOrders = orderRepository.findAll();
+            return allOrders.stream()
+                    .filter(order -> !order.getOrderDate().isBefore(startDate) &&
+                            !order.getOrderDate().isAfter(endDate))
+                    .sorted((o1, o2) -> o2.getOrderDate().compareTo(o1.getOrderDate()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error getting orders by date range: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public void deleteOrder(Long id) {
+        try {
+            if (orderRepository.existsById(id)) {
+                orderRepository.deleteById(id);
+                System.out.println("Order " + id + " deleted successfully");
+            } else {
+                throw new IllegalArgumentException("Заказ с ID " + id + " не найден");
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при удалении заказа: " + e.getMessage(), e);
+        }
+    }
+
+    public Order updateOrder(Order order) {
+        try {
+            if (!orderRepository.existsById(order.getId())) {
+                throw new IllegalArgumentException("Заказ с ID " + order.getId() + " не найден");
+            }
+            return orderRepository.save(order);
+        } catch (Exception e) {
+            throw new RuntimeException("Ошибка при обновлении заказа: " + e.getMessage(), e);
+        }
+    }
+
+    public boolean orderExists(Long id) {
+        try {
+            return orderRepository.existsById(id);
+        } catch (Exception e) {
+            System.err.println("Error checking if order exists: " + e.getMessage());
+            return false;
+        }
+    }
+
+    public List<Order> searchOrders(String searchTerm) {
+        try {
+            List<Order> allOrders = orderRepository.findAll();
+            return allOrders.stream()
+                    .filter(order ->
+                            String.valueOf(order.getId()).contains(searchTerm) ||
+                                    order.getCustomerName().toLowerCase().contains(searchTerm.toLowerCase()) ||
+                                    order.getCustomerEmail().toLowerCase().contains(searchTerm.toLowerCase()) ||
+                                    order.getCustomerAddress().toLowerCase().contains(searchTerm.toLowerCase()))
+                    .sorted((o1, o2) -> o2.getOrderDate().compareTo(o1.getOrderDate()))
+                    .collect(Collectors.toList());
+        } catch (Exception e) {
+            System.err.println("Error searching orders: " + e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    public OrderStatus getOrderStatus(Long id) {
+        try {
+            Order order = getOrderById(id);
+            return order.getStatus();
+        } catch (Exception e) {
+            System.err.println("Error getting order status: " + e.getMessage());
+            return OrderStatus.PENDING;
+        }
+    }
+
+    public int getTotalItemsInOrder(Long orderId) {
+        try {
+            Order order = getOrderById(orderId);
+            return order.getItems().stream()
+                    .mapToInt(OrderItem::getQuantity)
+                    .sum();
+        } catch (Exception e) {
+            System.err.println("Error getting total items in order: " + e.getMessage());
+            return 0;
+        }
+    }
+
+    public List<Order> getTodayOrders() {
+        try {
+            LocalDateTime startOfDay = LocalDateTime.now().withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime endOfDay = LocalDateTime.now().withHour(23).withMinute(59).withSecond(59);
+
+            return getOrdersByDateRange(startOfDay, endOfDay);
+        } catch (Exception e) {
+            System.err.println("Error getting today's orders: " + e.getMessage());
+            return Collections.emptyList();
+        }
     }
 }
